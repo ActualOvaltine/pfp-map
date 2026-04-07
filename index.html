@@ -268,7 +268,7 @@ fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
         document.getElementById("detailCard").style.display = "block";
       });
 
-    var iowaCoord = projection([-93.5, 42.0]);
+    var iowaCoord = projection([-95.6, 42.39]);
     if (iowaCoord) {
       svg.append("circle").attr("cx",iowaCoord[0]).attr("cy",iowaCoord[1]).attr("r",5)
         .attr("fill","#fff").attr("stroke","#b22234").attr("stroke-width",2);
