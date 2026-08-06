@@ -9,7 +9,9 @@
 <meta property="og:title" content="Service Dogs Placed Across America">
 <meta property="og:description" content="An interactive map of the service dogs Partners for Patriots has placed with veterans across the United States.">
 <meta name="twitter:card" content="summary_large_image">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"
+        integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 /* The single source for the palette. The map script reads these same
    properties, so a colour only ever needs changing here. */
@@ -170,10 +172,6 @@ Enter or Space. The same figures are listed in the table below the map.</p>
 </div>
 
 <script>
-var DOG_DATA = {
-  "53":1,"06":2,"04":1,"08":3,"46":8,"31":22,"20":2,"48":1,
-  "27":2,"19":124,"29":3,"39":2,"21":1,"47":26,"01":1,"12":4,"51":3,"24":1
-};
 var FIPS_TO_NAME = {
   "01":"Alabama","02":"Alaska","04":"Arizona","05":"Arkansas","06":"California",
   "08":"Colorado","09":"Connecticut","10":"Delaware","11":"District of Columbia",
@@ -187,6 +185,42 @@ var FIPS_TO_NAME = {
   "47":"Tennessee","48":"Texas","49":"Utah","50":"Vermont","51":"Virginia",
   "53":"Washington","54":"West Virginia","55":"Wisconsin","56":"Wyoming"
 };
+
+// Placements are listed as pairs rather than written straight into an object.
+// An object literal silently keeps the last value when a state is repeated,
+// which is how a duplicated Maryland entry sat here unnoticed; as a list the
+// repeat is visible to the check below. Add or edit a state on one line here.
+var PLACEMENTS = [
+  ["53",1],["06",2],["04",1],["08",3],["46",8],["31",22],["20",2],["48",1],
+  ["27",2],["19",124],["29",3],["39",2],["21",1],["47",26],["01",1],["12",4],
+  ["51",3],["24",1]
+];
+
+// Builds the lookup the map draws from, reporting data-entry slips to the
+// console instead of rendering them as if they were intended. Warnings only:
+// a visitor should still get a map.
+var DOG_DATA = (function buildPlacements(){
+  var counts = {}, problems = [];
+  PLACEMENTS.forEach(function(entry){
+    var fips = entry[0], count = entry[1];
+    var name = FIPS_TO_NAME[fips] || "unknown state";
+    if (Object.prototype.hasOwnProperty.call(counts, fips)) {
+      problems.push("duplicate entry for " + name + " (" + fips + "): " +
+                    counts[fips] + ", then " + count);
+    }
+    if (!FIPS_TO_NAME[fips]) {
+      problems.push("FIPS code " + fips + " does not match any state");
+    }
+    if (typeof count !== "number" || !isFinite(count) || count < 0 || count % 1 !== 0) {
+      problems.push("count for " + name + " is not a whole number: " + count);
+    }
+    counts[fips] = count;
+  });
+  if (problems.length) {
+    console.warn("Problems in PLACEMENTS:\n  " + problems.join("\n  "));
+  }
+  return counts;
+})();
 // Fixed breaks rather than a computed ramp: placements are heavily skewed
 // (one state holds well over half the total), so a scale derived from the data
 // collapses almost every state into the lightest colour and leaves swatches
