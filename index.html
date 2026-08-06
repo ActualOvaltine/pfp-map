@@ -33,22 +33,30 @@ h1 { font-size: 34px; font-weight: 400; margin: 0 0 10px; line-height: 1.2; colo
 .tooltip-count span { font-size: 13px; font-weight: 400; margin-left: 6px; opacity: 0.7; }
 .tooltip-arrow { position: absolute; bottom: -6px; left: 20px; width: 12px; height: 12px; background: #1b2a4a; transform: rotate(45deg); border-radius: 2px; }
 .detail-card { margin-top: 24px; border: 2px solid #1b2a4a; border-radius: 12px; padding: 28px 36px; max-width: 420px; width: 100%; background: #f7f8fa; text-align: center; position: relative; display: none; }
-.detail-close { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 18px; cursor: pointer; color: #8896ad; line-height: 1; }
+.detail-close { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 18px; cursor: pointer; color: #66748d; line-height: 1; }
 .detail-state { font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #b22234; font-family: Verdana, Geneva, sans-serif; margin-bottom: 4px; }
 .detail-count { font-size: 60px; font-weight: 700; color: #1b2a4a; line-height: 1.1; }
 .detail-label { font-size: 15px; color: #5a6a85; margin-top: 4px; }
-.detail-hq { margin-top: 12px; font-size: 12px; color: #8896ad; font-family: Verdana, Geneva, sans-serif; font-style: italic; display: none; }
+.detail-hq { margin-top: 12px; font-size: 12px; color: #66748d; font-family: Verdana, Geneva, sans-serif; font-style: italic; display: none; }
 .detail-footer { margin-top: 16px; font-size: 13px; color: #5a6a85; line-height: 1.6; border-top: 1px solid #dde1e8; padding-top: 14px; }
-.legend { margin-top: 32px; display: flex; align-items: flex-end; gap: 22px; font-size: 11px; color: #8896ad; font-family: Verdana, Geneva, sans-serif; flex-wrap: wrap; justify-content: center; }
+.legend { margin-top: 32px; display: flex; align-items: flex-end; gap: 22px; font-size: 11px; color: #66748d; font-family: Verdana, Geneva, sans-serif; flex-wrap: wrap; justify-content: center; }
 .legend-bar { display: flex; gap: 2px; }
 .legend-step { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .legend-swatch { width: 40px; height: 10px; }
 .legend-none { display: flex; align-items: center; gap: 5px; }
-.legend-empty { width: 14px; height: 10px; background: #eaedf1; border: 1px solid #cdd3dc; border-radius: 2px; display: inline-block; vertical-align: middle; margin-right: 4px; }
+.legend-empty { width: 14px; height: 10px; background: #eaedf1; border: 1px solid #66748d; border-radius: 2px; display: inline-block; vertical-align: middle; margin-right: 4px; }
+/* Available to screen readers, removed from the visual layout. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+/* Focus ring for keyboard users. The JS also thickens the state's stroke,
+   which covers browsers that do not paint outlines on SVG elements. */
+.state-path:focus { outline: none; }
+.state-path:focus-visible { outline: 3px solid #b22234; outline-offset: 2px; }
+.detail-card:focus { outline: none; }
+.detail-close:focus-visible { outline: 2px solid #b22234; outline-offset: 2px; border-radius: 3px; }
 .bottom-section { margin-top: 28px; text-align: center; max-width: 420px; }
 .bottom-bar { width: 40px; height: 2px; background: #b22234; border-radius: 1px; margin: 0 auto 14px; }
-.bottom-quote { font-size: 13px; color: #8896ad; line-height: 1.6; font-style: italic; }
-.bottom-link { font-size: 12px; color: #8896ad; margin-top: 8px; font-family: Verdana, Geneva, sans-serif; }
+.bottom-quote { font-size: 13px; color: #66748d; line-height: 1.6; font-style: italic; }
+.bottom-link { font-size: 12px; color: #66748d; margin-top: 8px; font-family: Verdana, Geneva, sans-serif; }
 </style>
 </head>
 <body>
@@ -70,17 +78,33 @@ h1 { font-size: 34px; font-weight: 400; margin: 0 0 10px; line-height: 1.2; colo
   <div class="stat"><div class="stat-value" id="totalStates">—</div><div class="stat-label">States Reached</div></div>
 </div>
 
+<p class="visually-hidden" id="mapHelp">Each state with placements can be focused with the Tab key and opened with
+Enter or Space. The same figures are listed in the table below the map.</p>
+
 <div class="map-container" id="mapContainer">
-  <svg id="map" viewBox="0 0 975 610"></svg>
-  <div class="tooltip" id="tooltip">
+  <svg id="map" viewBox="0 0 975 610" role="group"
+       aria-label="Map of United States service dog placements by state"
+       aria-describedby="mapHelp"></svg>
+  <!-- Duplicates each state's aria-label, so it is hidden from assistive tech. -->
+  <div class="tooltip" id="tooltip" aria-hidden="true">
     <div class="tooltip-name" id="tooltipName"></div>
     <div class="tooltip-count" id="tooltipCount"></div>
     <div class="tooltip-arrow"></div>
   </div>
 </div>
 
-<div class="detail-card" id="detailCard">
-  <button class="detail-close" id="detailClose">&#x2715;</button>
+<!-- Wrapped in a div because table layout ignores the 1px width the
+     visually-hidden rule relies on; the table keeps its own display type. -->
+<div class="visually-hidden" id="srData">
+  <table id="dataTable">
+    <caption>Service dog placements by state</caption>
+    <thead><tr><th scope="col">State</th><th scope="col">Service dogs placed</th></tr></thead>
+    <tbody id="dataTableBody"></tbody>
+  </table>
+</div>
+
+<div class="detail-card" id="detailCard" role="status" aria-live="polite" tabindex="-1">
+  <button class="detail-close" id="detailClose" aria-label="Close state details">&#x2715;</button>
   <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="#b22234"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
     <span class="detail-state" id="detailState"></span>
@@ -142,6 +166,25 @@ var stateCount = Object.keys(DOG_DATA).length;
 
 document.getElementById("totalDogs").textContent = total;
 document.getElementById("totalStates").textContent = stateCount;
+
+// A text equivalent of the map, for screen readers and for the case where the
+// map geometry fails to load. Built from the same data the map is drawn from.
+(function buildDataTable(){
+  var body = document.getElementById("dataTableBody");
+  Object.keys(DOG_DATA)
+    .sort(function(a,b){ return DOG_DATA[b] - DOG_DATA[a]; })
+    .forEach(function(fips){
+      var row = document.createElement("tr");
+      var name = document.createElement("th");
+      name.setAttribute("scope","row");
+      name.textContent = FIPS_TO_NAME[fips];
+      var count = document.createElement("td");
+      count.textContent = DOG_DATA[fips];
+      row.appendChild(name);
+      row.appendChild(count);
+      body.appendChild(row);
+    });
+})();
 
 // Distinguish "no placements recorded" from an explicit count of zero.
 function getColor(count) {
@@ -226,16 +269,41 @@ function applySelectionStyles(fips) {
   });
 }
 
-function closeDetail() {
+function stateNode(fips) {
+  return d3.selectAll("path.state-path").nodes().filter(function(n){
+    return n.__data__.fips === fips;
+  })[0];
+}
+
+// Keyboard focus must stay visible even while another state is selected, so
+// this runs regardless of selectedFips — unlike the hover handlers.
+function focusOn(node, d) {
+  if (!hasData(d.fips) || d.fips === selectedFips) return;
+  d3.select(node).attr("stroke",STROKE_HILITE).attr("stroke-width",WIDTH_HILITE).style("opacity",1);
+}
+function focusOff(node, d) {
+  if (!hasData(d.fips) || d.fips === selectedFips) return;
+  d3.select(node)
+    .attr("stroke", baseStroke(d.fips))
+    .attr("stroke-width", baseWidth(d.fips))
+    .style("opacity", selectedFips ? 0.55 : 1);
+}
+
+function closeDetail(returnFocus) {
+  var previous = selectedFips;
   selectedFips = null;
   document.getElementById("detailCard").style.display = "none";
   resetStateStyles();
+  if (returnFocus && previous) {
+    var node = stateNode(previous);
+    if (node) node.focus();
+  }
 }
 
-function selectState(fips) {
+function selectState(fips, viaKeyboard) {
   if (!hasData(fips)) return;
   hideTooltip();
-  if (selectedFips === fips) { closeDetail(); return; }
+  if (selectedFips === fips) { closeDetail(viaKeyboard); return; }
   selectedFips = fips;
   applySelectionStyles(fips);
   var count = DOG_DATA[fips];
@@ -243,7 +311,11 @@ function selectState(fips) {
   document.getElementById("detailCount").textContent = count;
   document.getElementById("detailLabel").textContent = "service " + (count===1?"dog":"dogs") + " placed";
   document.getElementById("detailHq").style.display = fips===HQ_FIPS ? "block" : "none";
-  document.getElementById("detailCard").style.display = "block";
+  var card = document.getElementById("detailCard");
+  card.style.display = "block";
+  // Move focus into the card only for keyboard users; doing it on a mouse
+  // click would yank the page around unprompted.
+  if (viaKeyboard) card.focus();
 }
 
 function showMapError() {
@@ -277,6 +349,16 @@ fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
       .attr("stroke-linejoin","round")
       .attr("class", function(d){ return "state-path" + (hasData(d.fips) ? " state-active" : ""); })
       .style("cursor", function(d){ return hasData(d.fips) ? "pointer" : "default"; })
+      // States with placements are exposed as buttons; the rest are decorative
+      // and hidden from assistive tech so they do not clutter the map.
+      .attr("tabindex", function(d){ return hasData(d.fips) ? 0 : null; })
+      .attr("role", function(d){ return hasData(d.fips) ? "button" : null; })
+      .attr("aria-hidden", function(d){ return hasData(d.fips) ? null : "true"; })
+      .attr("aria-label", function(d){
+        if (!hasData(d.fips)) return null;
+        var count = DOG_DATA[d.fips];
+        return FIPS_TO_NAME[d.fips] + ": " + count + " service " + (count===1?"dog":"dogs") + " placed";
+      })
       .on("mouseenter", function(event, d){
         if (!hasData(d.fips) || selectedFips) return;
         d3.select(this).attr("stroke",STROKE_HILITE).attr("stroke-width",WIDTH_HILITE);
@@ -298,16 +380,26 @@ fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
           d3.select(this).attr("stroke",STROKE_ACTIVE).attr("stroke-width",WIDTH_ACTIVE);
         }
       })
-      .on("click", function(event, d){ selectState(d.fips); });
+      .on("click", function(event, d){ selectState(d.fips, false); })
+      .on("focus", function(event, d){ focusOn(this, d); })
+      .on("blur", function(event, d){ focusOff(this, d); })
+      .on("keydown", function(event, d){
+        if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
+          event.preventDefault();
+          selectState(d.fips, true);
+        }
+      });
 
     var hqCoord = projection([-95.6, 42.39]);
     if (hqCoord) {
+      // Decorative: the headquarters is already stated in the detail card.
       svg.append("circle").attr("cx",hqCoord[0]).attr("cy",hqCoord[1]).attr("r",5)
-        .attr("fill","#fff").attr("stroke","#b22234").attr("stroke-width",2);
+        .attr("fill","#fff").attr("stroke","#b22234").attr("stroke-width",2)
+        .attr("aria-hidden","true");
       svg.append("text").attr("x",hqCoord[0]).attr("y",hqCoord[1]-12)
         .attr("text-anchor","middle").attr("font-size","8").attr("fill","#1b2a4a")
         .attr("font-family","Verdana, Geneva, sans-serif").attr("font-weight","700")
-        .attr("letter-spacing","0.05em").text("HQ");
+        .attr("letter-spacing","0.05em").attr("aria-hidden","true").text("HQ");
     }
   })
   .catch(function(err){
@@ -315,7 +407,15 @@ fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
     showMapError();
   });
 
-document.getElementById("detailClose").addEventListener("click", closeDetail);
+document.getElementById("detailClose").addEventListener("click", function(event){
+  // event.detail is 0 when a button is activated by Enter or Space. Only send
+  // focus back to the map in that case; a mouse user has not lost their place.
+  closeDetail(event.detail === 0);
+});
+
+document.addEventListener("keydown", function(event){
+  if (event.key === "Escape" && selectedFips) closeDetail(true);
+});
 </script>
 </body>
 </html>
