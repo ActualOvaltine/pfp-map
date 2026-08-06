@@ -4,21 +4,50 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Partners for Patriots — Service Dog Placements</title>
+<meta name="description" content="An interactive map of the service dogs Partners for Patriots has placed with veterans across the United States.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Service Dogs Placed Across America">
+<meta property="og:description" content="An interactive map of the service dogs Partners for Patriots has placed with veterans across the United States.">
+<meta name="twitter:card" content="summary_large_image">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <style>
+/* The single source for the palette. The map script reads these same
+   properties, so a colour only ever needs changing here. */
+:root {
+  --navy: #1b2a4a;      /* primary brand colour, text and active borders */
+  --red: #b22234;       /* accent, selection and focus highlight */
+  --edge: #cdd3dc;      /* borders of states with no placements */
+  --paper: #ffffff;
+  --surface: #f7f8fa;   /* detail card background */
+  --rule: #dde1e8;      /* hairline dividers */
+  --ink-muted: #5a6a85; /* secondary text, 5.48:1 on white */
+  --ink-faint: #66748d; /* tertiary text, 4.72:1 on white (WCAG AA) */
+  --empty: #eaedf1;     /* fill for states with no placements */
+  /* Choropleth ramp, lightest to darkest. Mirrored by COLOR_STOPS in the
+     script; the legend swatches below reference these directly. */
+  --scale-1: #c8d6e5;
+  --scale-2: #6b88b0;
+  --scale-3: #2e4a7a;
+  --scale-4: #7a1a2a;
+  --scale-5: #b22234;
+}
 * { margin: 0; padding: 0; box-sizing: border-box; }
+/* Presentation attributes cannot resolve var(), so the decorative stars are
+   coloured here rather than inline. */
+.org-row svg { fill: var(--navy); }
+.detail-state-row svg { fill: var(--red); }
 body {
   font-family: Georgia, 'Times New Roman', serif;
-  color: #1b2a4a; background: #ffffff;
+  color: var(--navy); background: var(--paper);
   display: flex; flex-direction: column; align-items: center;
   padding: 48px 20px 40px; min-height: 100vh;
 }
 .logo { width: 100px; height: auto; border-radius: 8px; margin-bottom: 16px; }
 .org-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; }
-.org-name { font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: #1b2a4a; margin: 0; font-family: Verdana, Geneva, sans-serif; }
-h1 { font-size: 34px; font-weight: 400; margin: 0 0 10px; line-height: 1.2; color: #1b2a4a; text-align: center; }
-.subtitle { font-size: 15px; color: #5a6a85; line-height: 1.6; text-align: center; max-width: 700px; margin-bottom: 12px; }
-.stats-bar { display: flex; gap: 0; justify-content: center; margin: 24px 0 32px; background: #1b2a4a; border-radius: 10px; padding: 18px 40px; color: #fff; flex-wrap: wrap; }
+.org-name { font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--navy); margin: 0; font-family: Verdana, Geneva, sans-serif; }
+h1 { font-size: 34px; font-weight: 400; margin: 0 0 10px; line-height: 1.2; color: var(--navy); text-align: center; }
+.subtitle { font-size: 15px; color: var(--ink-muted); line-height: 1.6; text-align: center; max-width: 700px; margin-bottom: 12px; }
+.stats-bar { display: flex; gap: 0; justify-content: center; margin: 24px 0 32px; background: var(--navy); border-radius: 10px; padding: 18px 40px; color: #fff; flex-wrap: wrap; }
 .stat { text-align: center; padding: 0 28px; }
 .stat-value { font-size: 40px; font-weight: 700; line-height: 1; }
 .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.16em; color: rgba(255,255,255,0.65); margin-top: 4px; font-family: Verdana, Geneva, sans-serif; }
@@ -27,36 +56,43 @@ h1 { font-size: 34px; font-weight: 400; margin: 0 0 10px; line-height: 1.2; colo
 .map-container svg { width: 100%; height: auto; display: block; }
 .state-path { transition: fill 0.2s, stroke 0.15s, stroke-width 0.15s; }
 .state-active { cursor: pointer; }
-.tooltip { position: absolute; background: #1b2a4a; color: #fff; border-radius: 8px; padding: 12px 18px; box-shadow: 0 6px 24px rgba(27,42,74,0.25); pointer-events: none; z-index: 10; min-width: 160px; display: none; }
+.tooltip { position: absolute; background: var(--navy); color: #fff; border-radius: 8px; padding: 12px 18px; box-shadow: 0 6px 24px rgba(27,42,74,0.25); pointer-events: none; z-index: 10; min-width: 160px; display: none; }
 .tooltip-name { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.6); font-family: Verdana, Geneva, sans-serif; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 4px; }
 .tooltip-count { font-size: 28px; font-weight: 700; line-height: 1; }
-.tooltip-count span { font-size: 13px; font-weight: 400; margin-left: 6px; opacity: 0.7; }
-.tooltip-arrow { position: absolute; bottom: -6px; left: 20px; width: 12px; height: 12px; background: #1b2a4a; transform: rotate(45deg); border-radius: 2px; }
-.detail-card { margin-top: 24px; border: 2px solid #1b2a4a; border-radius: 12px; padding: 28px 36px; max-width: 420px; width: 100%; background: #f7f8fa; text-align: center; position: relative; display: none; }
-.detail-close { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 18px; cursor: pointer; color: #66748d; line-height: 1; }
-.detail-state { font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #b22234; font-family: Verdana, Geneva, sans-serif; margin-bottom: 4px; }
-.detail-count { font-size: 60px; font-weight: 700; color: #1b2a4a; line-height: 1.1; }
-.detail-label { font-size: 15px; color: #5a6a85; margin-top: 4px; }
-.detail-hq { margin-top: 12px; font-size: 12px; color: #66748d; font-family: Verdana, Geneva, sans-serif; font-style: italic; display: none; }
-.detail-footer { margin-top: 16px; font-size: 13px; color: #5a6a85; line-height: 1.6; border-top: 1px solid #dde1e8; padding-top: 14px; }
-.legend { margin-top: 32px; display: flex; align-items: flex-end; gap: 22px; font-size: 11px; color: #66748d; font-family: Verdana, Geneva, sans-serif; flex-wrap: wrap; justify-content: center; }
+.tooltip-unit { font-size: 13px; font-weight: 400; margin-left: 6px; opacity: 0.7; }
+.tooltip-arrow { position: absolute; bottom: -6px; left: 20px; width: 12px; height: 12px; background: var(--navy); transform: rotate(45deg); border-radius: 2px; }
+.detail-card { margin-top: 24px; border: 2px solid var(--navy); border-radius: 12px; padding: 28px 36px; max-width: 420px; width: 100%; background: var(--surface); text-align: center; position: relative; display: none; }
+.detail-close { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 18px; cursor: pointer; color: var(--ink-faint); line-height: 1; }
+.detail-state { font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--red); font-family: Verdana, Geneva, sans-serif; margin-bottom: 4px; }
+.detail-count { font-size: 60px; font-weight: 700; color: var(--navy); line-height: 1.1; }
+.detail-label { font-size: 15px; color: var(--ink-muted); margin-top: 4px; }
+.detail-hq { margin-top: 12px; font-size: 12px; color: var(--ink-faint); font-family: Verdana, Geneva, sans-serif; font-style: italic; display: none; }
+.detail-footer { margin-top: 16px; font-size: 13px; color: var(--ink-muted); line-height: 1.6; border-top: 1px solid var(--rule); padding-top: 14px; }
+.legend { margin-top: 32px; display: flex; align-items: flex-end; gap: 22px; font-size: 11px; color: var(--ink-faint); font-family: Verdana, Geneva, sans-serif; flex-wrap: wrap; justify-content: center; }
 .legend-bar { display: flex; gap: 2px; }
 .legend-step { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .legend-swatch { width: 40px; height: 10px; }
 .legend-none { display: flex; align-items: center; gap: 5px; }
-.legend-empty { width: 14px; height: 10px; background: #eaedf1; border: 1px solid #66748d; border-radius: 2px; display: inline-block; vertical-align: middle; margin-right: 4px; }
+/* Once the stats bar wraps, its vertical rule is left stranded beside the
+   first figure, so drop it and let the stacked layout do the separating. */
+@media (max-width: 460px) {
+  .stats-bar { padding: 18px 24px; }
+  .stat { padding: 10px 20px; }
+  .stat-divider { display: none; }
+}
+.legend-empty { width: 14px; height: 10px; background: var(--empty); border: 1px solid var(--ink-faint); border-radius: 2px; display: inline-block; vertical-align: middle; margin-right: 4px; }
 /* Available to screen readers, removed from the visual layout. */
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 /* Focus ring for keyboard users. The JS also thickens the state's stroke,
    which covers browsers that do not paint outlines on SVG elements. */
 .state-path:focus { outline: none; }
-.state-path:focus-visible { outline: 3px solid #b22234; outline-offset: 2px; }
+.state-path:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
 .detail-card:focus { outline: none; }
-.detail-close:focus-visible { outline: 2px solid #b22234; outline-offset: 2px; border-radius: 3px; }
+.detail-close:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; border-radius: 3px; }
 .bottom-section { margin-top: 28px; text-align: center; max-width: 420px; }
-.bottom-bar { width: 40px; height: 2px; background: #b22234; border-radius: 1px; margin: 0 auto 14px; }
-.bottom-quote { font-size: 13px; color: #66748d; line-height: 1.6; font-style: italic; }
-.bottom-link { font-size: 12px; color: #66748d; margin-top: 8px; font-family: Verdana, Geneva, sans-serif; }
+.bottom-bar { width: 40px; height: 2px; background: var(--red); border-radius: 1px; margin: 0 auto 14px; }
+.bottom-quote { font-size: 13px; color: var(--ink-faint); line-height: 1.6; font-style: italic; }
+.bottom-link { font-size: 12px; color: var(--ink-faint); margin-top: 8px; font-family: Verdana, Geneva, sans-serif; }
 </style>
 </head>
 <body>
@@ -64,9 +100,9 @@ h1 { font-size: 34px; font-weight: 400; margin: 0 0 10px; line-height: 1.2; colo
 
 <div style="text-align:center; max-width:700px;">
   <div class="org-row">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="#1b2a4a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+    <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
     <p class="org-name">Partners for Patriots</p>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="#1b2a4a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+    <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
   </div>
   <h1>Service Dogs Placed Across America</h1>
   <p class="subtitle">Every highlighted state represents veterans whose lives have been changed through the gift of a trained service dog. Click a state to learn more.</p>
@@ -88,7 +124,7 @@ Enter or Space. The same figures are listed in the table below the map.</p>
   <!-- Duplicates each state's aria-label, so it is hidden from assistive tech. -->
   <div class="tooltip" id="tooltip" aria-hidden="true">
     <div class="tooltip-name" id="tooltipName"></div>
-    <div class="tooltip-count" id="tooltipCount"></div>
+    <div class="tooltip-count"><span id="tooltipCount"></span><span class="tooltip-unit" id="tooltipUnit"></span></div>
     <div class="tooltip-arrow"></div>
   </div>
 </div>
@@ -105,10 +141,10 @@ Enter or Space. The same figures are listed in the table below the map.</p>
 
 <div class="detail-card" id="detailCard" role="status" aria-live="polite" tabindex="-1">
   <button class="detail-close" id="detailClose" aria-label="Close state details">&#x2715;</button>
-  <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="#b22234"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+  <div class="detail-state-row" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;">
+    <svg width="12" height="12" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
     <span class="detail-state" id="detailState"></span>
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="#b22234"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+    <svg width="12" height="12" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
   </div>
   <div class="detail-count" id="detailCount"></div>
   <div class="detail-label" id="detailLabel"></div>
@@ -118,11 +154,11 @@ Enter or Space. The same figures are listed in the table below the map.</p>
 
 <div class="legend">
   <div class="legend-bar">
-    <div class="legend-step"><div class="legend-swatch" style="background:#c8d6e5;border-radius:3px 0 0 3px;"></div><span>1</span></div>
-    <div class="legend-step"><div class="legend-swatch" style="background:#6b88b0;"></div><span>2&ndash;4</span></div>
-    <div class="legend-step"><div class="legend-swatch" style="background:#2e4a7a;"></div><span>5&ndash;9</span></div>
-    <div class="legend-step"><div class="legend-swatch" style="background:#7a1a2a;"></div><span>10&ndash;49</span></div>
-    <div class="legend-step"><div class="legend-swatch" style="background:#b22234;border-radius:0 3px 3px 0;"></div><span>50+</span></div>
+    <div class="legend-step"><div class="legend-swatch" style="background:var(--scale-1);border-radius:3px 0 0 3px;"></div><span>1</span></div>
+    <div class="legend-step"><div class="legend-swatch" style="background:var(--scale-2);"></div><span>2&ndash;4</span></div>
+    <div class="legend-step"><div class="legend-swatch" style="background:var(--scale-3);"></div><span>5&ndash;9</span></div>
+    <div class="legend-step"><div class="legend-swatch" style="background:var(--scale-4);"></div><span>10&ndash;49</span></div>
+    <div class="legend-step"><div class="legend-swatch" style="background:var(--scale-5);border-radius:0 3px 3px 0;"></div><span>50+</span></div>
   </div>
   <span class="legend-none"><span class="legend-empty"></span> No placements</span>
 </div>
@@ -156,16 +192,28 @@ var FIPS_TO_NAME = {
 // collapses almost every state into the lightest colour and leaves swatches
 // unused. These buckets stay stable as the numbers grow, and the legend can
 // state them outright instead of a vague "fewer to more".
-var COLOR_STOPS = ["#c8d6e5","#6b88b0","#2e4a7a","#7a1a2a","#b22234"];
+// Read the palette from the CSS custom properties so the stylesheet stays the
+// only place a colour is defined. Fallbacks keep the map drawable if a
+// property is ever removed.
+var rootStyle = getComputedStyle(document.documentElement);
+function palette(name, fallback) {
+  return (rootStyle.getPropertyValue(name) || "").trim() || fallback;
+}
+
+var COLOR_STOPS = [
+  palette("--scale-1","#c8d6e5"), palette("--scale-2","#6b88b0"),
+  palette("--scale-3","#2e4a7a"), palette("--scale-4","#7a1a2a"),
+  palette("--scale-5","#b22234")
+];
 var COLOR_BREAKS = [2, 5, 10, 50]; // 1 | 2-4 | 5-9 | 10-49 | 50+
-var COLOR_EMPTY = "#eaedf1";
+var COLOR_EMPTY = palette("--empty","#eaedf1");
 var colorScale = d3.scaleThreshold().domain(COLOR_BREAKS).range(COLOR_STOPS);
 
 var total = Object.values(DOG_DATA).reduce(function(a,b){return a+b;},0);
 var stateCount = Object.keys(DOG_DATA).length;
 
-document.getElementById("totalDogs").textContent = total;
-document.getElementById("totalStates").textContent = stateCount;
+document.getElementById("totalDogs").textContent = total.toLocaleString();
+document.getElementById("totalStates").textContent = stateCount.toLocaleString();
 
 // A text equivalent of the map, for screen readers and for the case where the
 // map geometry fails to load. Built from the same data the map is drawn from.
@@ -192,43 +240,64 @@ function getColor(count) {
   return colorScale(count);
 }
 
+// A minimal TopoJSON reader — only the parts the us-atlas states file needs.
+// Quantised topologies delta-encode their arcs and carry a transform;
+// un-quantised ones store absolute coordinates and omit it entirely, so the
+// transform is treated as optional rather than assumed to exist.
 function topojsonFeature(topology, object) {
   var arcs = topology.arcs;
   var tr = topology.transform;
+  var scale = tr ? tr.scale : [1, 1];
+  var translate = tr ? tr.translate : [0, 0];
+
   function decodeArc(index) {
+    // A negative index means the arc is traversed backwards.
     var reverse = index < 0;
     var arc = arcs[reverse ? ~index : index];
-    var coords = [];
+    var coords = new Array(arc.length);
     var x = 0, y = 0;
     for (var i = 0; i < arc.length; i++) {
-      x += arc[i][0]; y += arc[i][1];
-      coords.push([x*tr.scale[0]+tr.translate[0], y*tr.scale[1]+tr.translate[1]]);
+      if (tr) { x += arc[i][0]; y += arc[i][1]; }
+      else { x = arc[i][0]; y = arc[i][1]; }
+      coords[i] = [x * scale[0] + translate[0], y * scale[1] + translate[1]];
     }
     if (reverse) coords.reverse();
     return coords;
   }
+
   function decodeRing(ring) {
-    var c = [];
+    var out = [];
     for (var i = 0; i < ring.length; i++) {
-      var d = decodeArc(ring[i]);
-      if (c.length) d.shift();
-      c = c.concat(d);
+      var segment = decodeArc(ring[i]);
+      // Consecutive arcs repeat the point they share, so skip it after the
+      // first segment. Appending in place avoids rebuilding the array per arc.
+      for (var j = out.length ? 1 : 0; j < segment.length; j++) out.push(segment[j]);
     }
-    return c;
+    return out;
   }
+
   function decodeGeom(g) {
-    if (g.type==="Polygon") return {type:"Polygon",coordinates:g.arcs.map(decodeRing)};
-    if (g.type==="MultiPolygon") return {type:"MultiPolygon",coordinates:g.arcs.map(function(p){return p.map(decodeRing);})};
+    if (!g || !g.type) return null; // null geometries are legal in TopoJSON
+    if (g.type === "Polygon") return { type:"Polygon", coordinates: g.arcs.map(decodeRing) };
+    if (g.type === "MultiPolygon") return {
+      type: "MultiPolygon",
+      coordinates: g.arcs.map(function(p){ return p.map(decodeRing); })
+    };
     return g;
   }
+
   return {
     type: "FeatureCollection",
-    features: object.geometries.map(function(g){return {type:"Feature",id:g.id,properties:g.properties||{},geometry:decodeGeom(g)};})
+    features: object.geometries.map(function(g){
+      return { type:"Feature", id:g.id, properties:g.properties||{}, geometry:decodeGeom(g) };
+    })
   };
 }
 
 var HQ_FIPS = "19";
-var STROKE_ACTIVE = "#1b2a4a", STROKE_EMPTY = "#cdd3dc", STROKE_HILITE = "#b22234";
+var STROKE_ACTIVE = palette("--navy","#1b2a4a"),
+    STROKE_EMPTY  = palette("--edge","#cdd3dc"),
+    STROKE_HILITE = palette("--red","#b22234");
 var WIDTH_ACTIVE = 0.8, WIDTH_EMPTY = 0.5, WIDTH_HILITE = 2.5;
 
 var selectedFips = null;
@@ -242,10 +311,16 @@ function baseWidth(fips) { return hasData(fips) ? WIDTH_ACTIVE : WIDTH_EMPTY; }
 
 function hideTooltip() { tooltip.style.display = "none"; }
 
+// Measure the tooltip rather than assuming a fixed size, and keep it inside
+// the map area on both axes — the old hard-coded 200px did not match the
+// element's own width and nothing clamped the top edge.
 function moveTooltip(event) {
   var rect = container.getBoundingClientRect();
-  tooltip.style.left = Math.min(event.clientX - rect.left + 14, container.offsetWidth - 200) + "px";
-  tooltip.style.top = (event.clientY - rect.top - 70) + "px";
+  var x = event.clientX - rect.left;
+  var y = event.clientY - rect.top;
+  var maxLeft = Math.max(0, container.offsetWidth - tooltip.offsetWidth);
+  tooltip.style.left = Math.max(0, Math.min(x + 14, maxLeft)) + "px";
+  tooltip.style.top = Math.max(0, y - tooltip.offsetHeight - 10) + "px";
 }
 
 // Return every state to its default, unselected appearance.
@@ -321,7 +396,7 @@ function selectState(fips, viaKeyboard) {
 function showMapError() {
   d3.select("#map").append("text")
     .attr("x",487).attr("y",300).attr("text-anchor","middle")
-    .attr("font-size",17).attr("fill","#5a6a85")
+    .attr("font-size",17).attr("fill",palette("--ink-muted","#5a6a85"))
     .attr("font-family","Georgia, 'Times New Roman', serif")
     .text("The map could not be loaded — the totals above are still accurate.");
 }
@@ -364,8 +439,9 @@ fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
         d3.select(this).attr("stroke",STROKE_HILITE).attr("stroke-width",WIDTH_HILITE);
         document.getElementById("tooltipName").textContent = FIPS_TO_NAME[d.fips];
         var count = DOG_DATA[d.fips];
-        document.getElementById("tooltipCount").innerHTML = count + "<span>" + (count===1?"dog":"dogs") + " placed</span>";
-        tooltip.style.display = "block";
+        document.getElementById("tooltipCount").textContent = count;
+        document.getElementById("tooltipUnit").textContent = (count===1?"dog":"dogs") + " placed";
+        tooltip.style.display = "block";  // must be laid out before it can be measured
         moveTooltip(event);
       })
       .on("mousemove", function(event){
@@ -394,10 +470,10 @@ fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
     if (hqCoord) {
       // Decorative: the headquarters is already stated in the detail card.
       svg.append("circle").attr("cx",hqCoord[0]).attr("cy",hqCoord[1]).attr("r",5)
-        .attr("fill","#fff").attr("stroke","#b22234").attr("stroke-width",2)
+        .attr("fill",palette("--paper","#ffffff")).attr("stroke",STROKE_HILITE).attr("stroke-width",2)
         .attr("aria-hidden","true");
       svg.append("text").attr("x",hqCoord[0]).attr("y",hqCoord[1]-12)
-        .attr("text-anchor","middle").attr("font-size","8").attr("fill","#1b2a4a")
+        .attr("text-anchor","middle").attr("font-size","8").attr("fill",STROKE_ACTIVE)
         .attr("font-family","Verdana, Geneva, sans-serif").attr("font-weight","700")
         .attr("letter-spacing","0.05em").attr("aria-hidden","true").text("HQ");
     }
